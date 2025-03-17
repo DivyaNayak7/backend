@@ -9,53 +9,31 @@ on:
       - main
 
 jobs:
-  build:
+  sonarcloud:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v3
+      - name: Set up JDK 11  # SonarCloud needs Java
+        uses: actions/setup-java@v3
         with:
-          python-version: '3.9'
+          distribution: 'temurin'
+          java-version: '11'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
 
-      - name: Run Tests
-        run: pytest
-
-  docker:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-
-      - name: Build and push Docker image
+      - name: SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/backend-app:latest .
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/backend-app:latest
-
-  zap_scan:
-    runs-on: ubuntu-latest
-    needs: docker
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-
-      - name: Pull ZAP Docker Image
-        run: docker pull ictu/zap2docker-weekly
-
-      - name: Run ZAP Baseline Scan (Allow Warnings)
-        run: |
-          docker run --rm -v $(pwd):/zap/wrk:rw ictu/zap2docker-weekly \
-          zap-baseline.py -t http://your-backend-url.com \
-          -r zap_report.html -w 10 || true
+          sonar-scanner \
+          -Dsonar.organization=your-sonarcloud-org \
+          -Dsonar.projectKey=your-repo-name \
+          -Dsonar.sources=. \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.token=$SONAR_TOKEN

@@ -168,18 +168,6 @@ def get_course_assignments(course_id):
 # Vulnerability: No input validation or sanitization
 # Modified registration endpoint with role-based signup
 
-@app.route('/api/xss-test', methods=['GET', 'POST'])
-def xss_test():
-    """
-    This endpoint is intentionally vulnerable to Cross-Site Scripting (XSS).
-    It directly returns user input without sanitization.
-    """
-    user_input = request.args.get('input', '')
-
-    # 🚨 Vulnerability: User input is returned directly in the response without sanitization
-    return f"<h1>User Input: {user_input}</h1>"
-
-
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -317,6 +305,28 @@ def get_courses():
 
 
 @app.route('/api/login', methods=['POST'])
+
+@app.route('/api/vulnerable-sql', methods=['GET'])
+def vulnerable_sql():
+    """
+    This endpoint is intentionally vulnerable to SQL Injection.
+    It constructs SQL queries using direct string concatenation.
+    """
+    username = request.args.get('username', '')
+
+    # ⚠️ Vulnerability: Direct concatenation of user input in SQL query (SQL Injection)
+    query = f"SELECT * FROM user WHERE username = '{username}'"
+
+    # Execute the query unsafely
+    conn = sqlite3.connect('learning.db')
+    cursor = conn.cursor()
+    cursor.execute(query)
+    result = cursor.fetchall()
+    conn.close()
+
+    return jsonify({"result": result})
+
+
 def login():
     data = request.get_json()
 

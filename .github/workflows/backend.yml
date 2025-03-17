@@ -48,8 +48,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarqube-scan-action@master
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2.0.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
@@ -64,8 +64,6 @@ jobs:
 
       - name: Run Snyk Security Scan
         uses: snyk/actions/python@master
-        with:
-          args: --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

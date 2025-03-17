@@ -85,18 +85,6 @@ class Assignment(db.Model):
         'course.id'), nullable=False)
     due_date = db.Column(db.DateTime, nullable=False)
 
-@app.route('/api/xss-test', methods=['GET', 'POST'])
-def xss_test():
-    """
-    This endpoint is intentionally vulnerable to Cross-Site Scripting (XSS).
-    It directly returns user input without sanitization.
-    """
-    user_input = request.args.get('input', '')
-
-    # Vulnerability: User input is reflected in response without sanitization
-    return f"<h1>User Input: {user_input}</h1>"
-
-
 
 def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     """
@@ -543,6 +531,17 @@ def grade_student():
         db.session.rollback()
         print(f"Error submitting grade: {str(e)}")
         return jsonify({'message': 'Error submitting grade'}), 500
+
+@app.route('/api/xss-test', methods=['GET', 'POST'])
+def xss_test():
+    """
+    This endpoint is intentionally vulnerable to Cross-Site Scripting (XSS).
+    It directly returns user input without sanitization.
+    """
+    user_input = request.args.get('input', '')
+
+    # Vulnerability: User input is returned without sanitization
+    return f"<h1>User Input: {user_input}</h1>"
 
 
 if __name__ == '__main__':

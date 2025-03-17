@@ -305,29 +305,24 @@ def get_courses():
 
 
 @app.route('/api/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
 
-    # Vulnerability: Direct string concatenation in SQL query
+    # ❌ Vulnerability: SQL Injection - Concatenating user input in SQL query
     query = f"SELECT * FROM user WHERE username='{data['username']}' AND password='{data['password']}'"
-
-    # Using SQLAlchemy instead of direct SQLite
-    user = User.query.filter_by(
-        username=data['username'],
-        # Vulnerability: plain text password comparison
-        password=data['password']
-    ).first()
+    user = db.session.execute(query).fetchone()
 
     if user:
         token = jwt.encode({
             'user_id': user.id,
             'username': user.username,
-            'role': user.role,
-            'exp': datetime.utcnow() + timedelta(hours=24)
+            'role': user.role
         }, app.config['SECRET_KEY'])
         return jsonify({'token': token})
 
     return jsonify({'message': 'Invalid credentials'}), 401
+
 # Vulnerability: No proper authentication check
 
 

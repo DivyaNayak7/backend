@@ -21,8 +21,7 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Run Tests
         run: pytest
@@ -49,11 +48,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Log in to Docker Hub  # ✅ Add this step
+        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
       - name: Pull ZAP Docker Image
-        run: docker pull ictu/zap2docker-weekly
+        run: docker pull ictu/zap2docker-weekly  # ✅ Corrected Image
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
           target: 'http://your-backend-url.com'
-          token: ${{ secrets.ZAP_API_KEY }}
+          token: ${{ secrets.ZAP_API_KEY }}  # ✅ Ensure correct API Key

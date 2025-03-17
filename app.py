@@ -84,6 +84,13 @@ class Assignment(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey(
         'course.id'), nullable=False)
     due_date = db.Column(db.DateTime, nullable=False)
+    
+@app.route('/api/search', methods=['GET'])
+def search():
+    query = request.args.get('q', '')
+    # ⚠️ Vulnerability: Directly injecting user input into SQL query
+    results = db.session.execute(f"SELECT * FROM courses WHERE title LIKE '%{query}%'").fetchall()
+    return jsonify([dict(row) for row in results])
 
 
 def is_course_teacher(course_id: int, teacher_id: int) -> bool:

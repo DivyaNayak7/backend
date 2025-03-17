@@ -109,3 +109,5 @@ jobs:
           zap-baseline.py -t http://your-backend-url.com \
           -r zap_report.html -w 10 || true
 
+          -r zap_report.html -w 10 || true
+

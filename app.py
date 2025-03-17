@@ -89,6 +89,13 @@ class Assignment(db.Model):
         'course.id'), nullable=False)
     due_date = db.Column(db.DateTime, nullable=False)
 
+@app.after_request
+def set_insecure_cookie(response):
+    """
+    ⚠️ Vulnerability: Sets a session cookie without HttpOnly and Secure flags
+    """
+    response.set_cookie('session_id', 'insecure-session', httponly=False, secure=False)
+    return response
 
 def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     """

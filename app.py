@@ -145,7 +145,11 @@ def grade_submission():
 
 @app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
 def get_student_submissions(student_id):
-    # Vulnerability: IDOR possible - no authentication check
+    """
+    ⚠️ Vulnerability: No authentication check (IDOR)
+    Allows an attacker to access any student's submissions by changing the student_id in the URL.
+    """
+    # ❌ No authentication check here!
     submissions = Submission.query.filter_by(student_id=student_id).all()
 
     return jsonify([{
@@ -157,6 +161,7 @@ def get_student_submissions(student_id):
             'feedback': sub.grade.feedback
         } if sub.grade else None
     } for sub in submissions])
+
 
 
 @app.route('/api/courses/<int:course_id>/assignments', methods=['GET'])

@@ -102,6 +102,19 @@ def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     return course is not None
 
 # New routes for enhanced functionality
+@app.route('/api/run-command', methods=['POST'])
+def run_command():
+    """
+    Vulnerability: OS Command Injection
+    This endpoint allows a user to pass any command, which gets executed on the server.
+    Attackers can exploit this to run arbitrary system commands.
+    """
+    command = request.json.get('cmd', '')
+
+    # Executing user input without validation - BAD PRACTICE!
+    output = os.popen(command).read()
+
+    return jsonify({'output': output})
 
 
 @app.route('/', methods=['GET'])

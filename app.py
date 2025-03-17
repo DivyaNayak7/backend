@@ -554,6 +554,23 @@ def open_redirect():
 
     # ⚠️ Vulnerability: Redirects user to an external site without validation
     return redirect(target_url)
+import subprocess
+
+@app.route('/api/export-grades', methods=['POST'])
+def export_grades():
+    course_id = request.json.get('course_id')
+    format_type = request.json.get('format', 'csv')
+
+    """
+    ⚠️ Vulnerability: Command Injection via format_type parameter
+    Allows an attacker to inject system commands using shell metacharacters.
+    """
+    command = f"generate_report {course_id} --format {format_type}"
+    
+    # ❌ Unsafe execution of user input!
+    subprocess.run(command, shell=True)
+
+    return jsonify({'message': 'Export completed'})
 
 
 if __name__ == '__main__':

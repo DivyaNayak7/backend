@@ -305,8 +305,6 @@ def get_courses():
 
 
 @app.route('/api/login', methods=['POST'])
-
-
 def login():
     data = request.get_json()
 
@@ -331,25 +329,6 @@ def login():
 
     return jsonify({'message': 'Invalid credentials'}), 401
 # Vulnerability: No proper authentication check
-@app.route('/api/vulnerable-sql', methods=['GET'])
-def vulnerable_sql():
-    """
-    This endpoint is intentionally vulnerable to SQL Injection.
-    It constructs SQL queries using direct string concatenation.
-    """
-    username = request.args.get('username', '')
-
-    # ⚠️ Vulnerability: Direct concatenation of user input in SQL query (SQL Injection)
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-
-    # Execute the query unsafely
-    conn = sqlite3.connect('learning.db')
-    cursor = conn.cursor()
-    cursor.execute(query)
-    result = cursor.fetchall()
-    conn.close()
-
-    return jsonify({"result": result})
 
 
 @app.route('/api/submissions/<int:submission_id>', methods=['GET'])
@@ -369,23 +348,29 @@ def get_submission(submission_id):
 # Vulnerability: Insecure file handling
 
 
-
 @app.route('/api/submit-assignment', methods=['POST'])
 def submit_assignment():
-    """
-    Vulnerable file upload endpoint: allows arbitrary files.
-    """
     if 'file' not in request.files:
         return jsonify({'message': 'No file provided'}), 400
 
     file = request.files['file']
-    
-    # ⚠️ Vulnerability: No file type validation, allows any file type
-    filename = file.filename
+    assignment_id = request.form.get('assignment_id')
+    student_id = request.form.get('student_id')
+
+    # Vulnerability: No file type validation
+    filename = secure_filename(file.filename)
+    # Vulnerability: Path traversal possible
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-    return jsonify({'message': f'File {filename} uploaded successfully'})
+    submission = Submission(
+        student_id=student_id,
+        assignment_id=assignment_id,
+        file_path=filename
+    )
+    db.session.add(submission)
+    db.session.commit()
 
+    return jsonify({'message': 'Assignment submitted successfully'})
 
 # Vulnerability: Directory traversal possible
 
@@ -546,6 +531,18 @@ def grade_student():
         db.session.rollback()
         print(f"Error submitting grade: {str(e)}")
         return jsonify({'message': 'Error submitting grade'}), 500
+from flask import redirect
+
+@app.route('/api/redirect', methods=['GET'])
+def open_redirect():
+    """
+    This endpoint is intentionally vulnerable to Open Redirect.
+    It allows users to specify any URL, leading to phishing attacks.
+    """
+    target_url = request.args.get('url', '')
+
+    # ⚠️ Vulnerability: Redirects user to an external site without validation
+    return redirect(target_url)
 
 
 if __name__ == '__main__':

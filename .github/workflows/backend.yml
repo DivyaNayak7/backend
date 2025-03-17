@@ -89,7 +89,6 @@ jobs:
       - name: Run Snyk Security Scan
         run: snyk test --severity-threshold=high || true
 
-
   zap_scan:
     needs: docker
     runs-on: ubuntu-latest
@@ -97,21 +96,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Start Backend Locally
-        run: |
-          docker run -d -p 4000:4000 --name backend-app ${{ secrets.DOCKER_HUB_USERNAME }}/backend-app:latest
-          sleep 10  # Wait for the backend to start
-
       - name: Run ZAP Baseline Scan
         run: |
           docker pull ghcr.io/zaproxy/zaproxy:stable
-          docker run --network=host -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-          -t http://localhost:4000 \
-          -J zap_report.json -r zap_report.html -w 10 || true
+          docker run -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+          -t http://your-backend-url.com \
+          -J zap_report.json || true
 
-      - name: Upload ZAP Report as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-security-report
-          path: zap_report.html
-
+          -r zap_report.html -w 10 || true

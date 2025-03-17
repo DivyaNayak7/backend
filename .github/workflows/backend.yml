@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -18,31 +21,33 @@ jobs:
           python-version: '3.9'
 
       - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
+
+      - name: Run Tests
+        run: pytest
 
   docker:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Log in to DockerHub
+      - name: Log in to Docker Hub
         run: |
+          docker logout
           echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      - name: Build Docker Image
-        run: docker build -t divyasnayak/backend-app:latest .
-
-      - name: Push Docker Image
-        run: docker push divyasnayak/backend-app:latest
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/backend-app:latest .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/backend-app:latest
 
   sonarcloud:
     needs: docker
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: SonarCloud Scan
@@ -59,8 +64,11 @@ jobs:
     needs: docker
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Authenticate Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
 
       - name: Run Snyk Security Scan
         uses: snyk/actions/python@master
@@ -73,12 +81,13 @@ jobs:
     needs: docker
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Pull ZAP Docker Image
+        run: docker pull owasp/zap2docker-stable
 
       - name: Run ZAP Baseline Scan
         run: |
-          docker pull ghcr.io/zaproxy/zaproxy:stable
-          docker run -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-          -t http://your-backend-url.com \
-          -J zap_report.json || true
+          docker run -v $(pwd):/zap/wrk:rw -t owasp/zap2docker-stable \
+          zap-baseline.py -t http://your-backend-url.com -J zap_report.json || true

@@ -48,14 +48,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Log in to Docker Hub  # ✅ Add this step
+      - name: Log in to Docker Hub  # ✅ Added this step
         run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      - name: Pull ZAP Docker Image
-        run: docker pull ictu/zap2docker-weekly  # ✅ Corrected Image
+      - name: Pull ZAP Docker Image  # ✅ Fixed Image Name
+        run: docker pull ictu/zap2docker-weekly
 
-      - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.7.0
-        with:
-          target: 'http://your-backend-url.com'
-          token: ${{ secrets.ZAP_API_KEY }}  # ✅ Ensure correct API Key
+      - name: Run ZAP Baseline Scan  # ✅ Fixed ZAP Scan Command
+        run: docker run --rm -v $(pwd):/zap/wrk:rw ictu/zap2docker-weekly zap-baseline.py -t http://your-backend-url.com

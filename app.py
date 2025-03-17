@@ -6,91 +6,86 @@ import os
 import jwt
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
-from app import *
 
 app = Flask(__name__)
 CORS(app)
 
-# 🚨 Hardcoded Secret Key (Vulnerability)
-app.config['SECRET_KEY'] = 'super-secret-key'  # ❌ Exposed Secret Key
+# Hardcoded secret key (VULNERABILITY)
+app.config['SECRET_KEY'] = 'weak-secret-key'  
 
+# SQLAlchemy database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learning.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Insecure file upload directory (VULNERABILITY: No file validation)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 db = SQLAlchemy(app)
 
-# 🚨 User Model with Plaintext Passwords
+# Define Models
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)  # ❌ No Hashing
-    role = db.Column(db.String(20), nullable=False)
+    password = db.Column(db.String(120), nullable=False)  # VULNERABILITY: Plaintext Password
+    role = db.Column(db.String(20), nullable=False)  # 'student' or 'teacher'
 
-# 🚨 Broken Authentication: SQL Injection in Login
-@app.route('/api/login', methods=['POST'])
-def login():
+class Course(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)  # VULNERABILITY: Stored XSS Possible
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class Enrollment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# SQL Injection Vulnerability
+@app.route('/api/unsafe-login', methods=['POST'])
+def unsafe_login():
     data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
 
-    # ❌ SQL Injection: Direct user input in query
-    query = f"SELECT * FROM user WHERE username='{data['username']}' AND password='{data['password']}'"
-    user = db.session.execute(query).fetchone()  # ❌ SQL Injection risk!
+    # Direct SQL Query (VULNERABILITY)
+    connection = sqlite3.connect('learning.db')
+    cursor = connection.cursor()
+    query = f"SELECT * FROM user WHERE username='{username}' AND password='{password}'"  
+    cursor.execute(query)  # VULNERABLE: No input sanitization
+    user = cursor.fetchone()
+    connection.close()
 
     if user:
-        token = jwt.encode({  # ❌ No Expiry
-            'user_id': user.id,
-            'username': user.username,
-            'role': user.role
-        }, app.config['SECRET_KEY'])
-        return jsonify({'token': token})
+        return jsonify({'message': 'Login Successful'})
+    return jsonify({'message': 'Invalid Credentials'}), 401
 
-    return jsonify({'message': 'Invalid credentials'}), 401
-
-# 🚨 Insecure File Upload (No Validation)
+# Insecure File Upload (VULNERABILITY)
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return jsonify({'message': 'No file uploaded'}), 400
+        return jsonify({'message': 'No file provided'}), 400
 
     file = request.files['file']
+    filename = secure_filename(file.filename)
 
-    # ❌ No validation of file type
-    filename = file.filename  # ❌ Path Traversal risk
+    # VULNERABILITY: Allowing all file types without checking
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-    return jsonify({'message': 'File uploaded successfully'})
+    return jsonify({'message': 'File uploaded successfully', 'filename': filename})
 
-# 🚨 Insecure File Download (No Access Control)
+# Insecure File Download (VULNERABILITY: Path Traversal)
 @app.route('/api/download/<path:filename>', methods=['GET'])
 def download_file(filename):
-    return send_file(os.path.join(app.config['UPLOAD_FOLDER'], filename))  # ❌ Unrestricted Access
+    return send_file(os.path.join(app.config['UPLOAD_FOLDER'], filename))  # No path validation
 
-# 🚨 Missing Authentication in User Registration
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.get_json()
+# No Authentication Check (VULNERABILITY)
+@app.route('/api/courses', methods=['GET'])
+def get_courses():
+    courses = Course.query.all()
+    return jsonify([{'id': c.id, 'title': c.title, 'description': c.description} for c in courses])
 
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'message': 'Username already exists'}), 400
-
-    # ❌ Storing Passwords in Plaintext
-    new_user = User(username=data['username'], password=data['password'], role=data['role'])
-
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({'message': 'Registration successful'})
-
-# 🚨 JWT Tokens Never Expire (No Logout Mechanism)
-@app.route('/api/token-test', methods=['GET'])
-def token_test():
-    token = request.headers.get('Authorization', '').split('Bearer ')[-1]
-    try:
-        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        return jsonify({'message': 'Token is valid', 'user': payload})
-    except jwt.InvalidTokenError:
-        return jsonify({'message': 'Invalid token'}), 401
-
+# Start Application
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])

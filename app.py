@@ -10,11 +10,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 app = Flask(__name__)
-from flask_cors import CORS
-
-# ⚠️ Vulnerability: Allowing all origins to access API
-CORS(app, resources={r"/*": {"origins": "*"}})
-
+CORS(app)
 
 # Vulnerable configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learning.db'
@@ -106,20 +102,6 @@ def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     return course is not None
 
 # New routes for enhanced functionality
-import requests
-
-@app.route('/api/fetch', methods=['GET'])
-def ssrf_vulnerability():
-    """
-    This endpoint is intentionally vulnerable to SSRF.
-    It allows users to make arbitrary web requests.
-    """
-    target_url = request.args.get('url', '')
-
-    # ⚠️ Vulnerability: Directly using user input in requests without validation
-    response = requests.get(target_url)
-
-    return jsonify({'status_code': response.status_code, 'body': response.text})
 
 
 @app.route('/', methods=['GET'])
@@ -153,6 +135,22 @@ def grade_submission():
         return jsonify({'message': 'Grade submitted successfully'})
 
     return jsonify({'message': 'Submission not found'}), 404
+
+
+@app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
+def get_student_submissions(student_id):
+    # Vulnerability: IDOR possible - no authentication check
+    submissions = Submission.query.filter_by(student_id=student_id).all()
+
+    return jsonify([{
+        'id': sub.id,
+        'file_path': sub.file_path,
+        'submitted_at': sub.submitted_at.isoformat() if hasattr(sub, 'submitted_at') else None,
+        'grade': {
+            'value': sub.grade.value,
+            'feedback': sub.grade.feedback
+        } if sub.grade else None
+    } for sub in submissions])
 
 
 @app.route('/api/courses/<int:course_id>/assignments', methods=['GET'])
@@ -190,37 +188,8 @@ def register():
     db.session.commit()
 
     return jsonify({'message': 'Registration successful'})
-import subprocess
-
-@app.route('/api/ping', methods=['GET'])
-def ping():
-    """
-    This endpoint is intentionally vulnerable to OS Command Injection.
-    It takes user input and directly passes it to the system shell.
-    """
-    target = request.args.get('target', '')
-
-    # ⚠️ Vulnerability: User input is passed directly to the OS shell
-    response = subprocess.getoutput(f"ping -c 1 {target}")
-
-    return jsonify({'response': response})
 
 # New endpoint for course creation (teachers only)
-
-import subprocess
-
-@app.route('/api/execute', methods=['GET'])
-def command_injection():
-    """
-    This endpoint is intentionally vulnerable to Command Injection.
-    It executes user input as a system command.
-    """
-    command = request.args.get('cmd', '')
-
-    # ⚠️ Vulnerability: Directly executing user input
-    output = subprocess.check_output(command, shell=True).decode()
-
-    return jsonify({'output': output})
 
 
 @app.route('/api/courses', methods=['POST'])
@@ -418,23 +387,16 @@ with app.app_context():
     db.create_all()
 
 
-import subprocess
-
 @app.route('/api/export-grades', methods=['POST'])
 def export_grades():
     course_id = request.json.get('course_id')
     format_type = request.json.get('format', 'csv')
 
-    """
-    ⚠️ Vulnerability: Command Injection via format_type parameter
-    Allows an attacker to inject system commands using shell metacharacters.
-    """
-    command = f"generate_report {course_id} --format {format_type}"
-    
-    # ❌ Unsafe execution of user input!
-    subprocess.run(command, shell=True)
+    # Vulnerability: Command injection through format parameter
+    os.system(f'generate_report {course_id} --format {format_type}')
 
     return jsonify({'message': 'Export completed'})
+
 
 @app.route('/api/courses/<int:course_id>/students', methods=['GET'])
 def get_course_students(course_id):
@@ -516,25 +478,6 @@ def get_student_course_grades(course_id, student_id):
         return jsonify({'message': 'Invalid token'}), 401
 
 # Update the grade submission endpoint
-@app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
-def get_student_submissions(student_id):
-    """
-    ⚠️ Vulnerability: No authentication check (IDOR)
-    Allows an attacker to access any student's submissions by changing the student_id in the URL.
-    """
-    # ❌ No authentication check here!
-    submissions = Submission.query.filter_by(student_id=student_id).all()
-
-    return jsonify([{
-        'id': sub.id,
-        'file_path': sub.file_path,
-        'submitted_at': sub.submitted_at.isoformat() if hasattr(sub, 'submitted_at') else None,
-        'grade': {
-            'value': sub.grade.value,
-            'feedback': sub.grade.feedback
-        } if sub.grade else None
-    } for sub in submissions])
-
 
 
 @app.route('/api/grade/student', methods=['POST'])
@@ -588,10 +531,6 @@ def grade_student():
         db.session.rollback()
         print(f"Error submitting grade: {str(e)}")
         return jsonify({'message': 'Error submitting grade'}), 500
-@app.route('/api/redirect', methods=['GET'])
-def open_redirect():
-    target_url = request.args.get('url', '')
-    return redirect(target_url)  # ❌ No validation!
 
 
 if __name__ == '__main__':

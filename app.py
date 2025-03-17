@@ -6,6 +6,7 @@ import os
 import jwt
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
+from app import *
 
 app = Flask(__name__)
 CORS(app)

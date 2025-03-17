@@ -15,6 +15,22 @@ from flask_cors import CORS
 # ⚠️ Vulnerability: Allowing all origins to access API
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+import subprocess
+
+@app.route('/api/ping', methods=['GET'])
+def ping():
+    """
+    This endpoint is intentionally vulnerable to OS Command Injection.
+    It takes user input and directly passes it to the system shell.
+    """
+    target = request.args.get('target', '')
+
+    # ⚠️ Vulnerability: User input is passed directly to the OS shell
+    response = subprocess.getoutput(f"ping -c 1 {target}")
+
+    return jsonify({'response': response})
+
+
 # Vulnerable configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learning.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

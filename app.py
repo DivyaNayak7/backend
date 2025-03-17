@@ -106,6 +106,20 @@ def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     return course is not None
 
 # New routes for enhanced functionality
+import requests
+
+@app.route('/api/fetch', methods=['GET'])
+def ssrf_vulnerability():
+    """
+    This endpoint is intentionally vulnerable to SSRF.
+    It allows users to make arbitrary web requests.
+    """
+    target_url = request.args.get('url', '')
+
+    # ⚠️ Vulnerability: Directly using user input in requests without validation
+    response = requests.get(target_url)
+
+    return jsonify({'status_code': response.status_code, 'body': response.text})
 
 
 @app.route('/', methods=['GET'])

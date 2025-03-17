@@ -15,21 +15,6 @@ from flask_cors import CORS
 # ⚠️ Vulnerability: Allowing all origins to access API
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-import subprocess
-
-@app.route('/api/ping', methods=['GET'])
-def ping():
-    """
-    This endpoint is intentionally vulnerable to OS Command Injection.
-    It takes user input and directly passes it to the system shell.
-    """
-    target = request.args.get('target', '')
-
-    # ⚠️ Vulnerability: User input is passed directly to the OS shell
-    response = subprocess.getoutput(f"ping -c 1 {target}")
-
-    return jsonify({'response': response})
-
 
 # Vulnerable configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learning.db'
@@ -191,8 +176,37 @@ def register():
     db.session.commit()
 
     return jsonify({'message': 'Registration successful'})
+import subprocess
+
+@app.route('/api/ping', methods=['GET'])
+def ping():
+    """
+    This endpoint is intentionally vulnerable to OS Command Injection.
+    It takes user input and directly passes it to the system shell.
+    """
+    target = request.args.get('target', '')
+
+    # ⚠️ Vulnerability: User input is passed directly to the OS shell
+    response = subprocess.getoutput(f"ping -c 1 {target}")
+
+    return jsonify({'response': response})
 
 # New endpoint for course creation (teachers only)
+
+import subprocess
+
+@app.route('/api/execute', methods=['GET'])
+def command_injection():
+    """
+    This endpoint is intentionally vulnerable to Command Injection.
+    It executes user input as a system command.
+    """
+    command = request.args.get('cmd', '')
+
+    # ⚠️ Vulnerability: Directly executing user input
+    output = subprocess.check_output(command, shell=True).decode()
+
+    return jsonify({'output': output})
 
 
 @app.route('/api/courses', methods=['POST'])

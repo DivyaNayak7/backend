@@ -84,7 +84,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Log in to DockerHub
+        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      - name: Pull ZAP Docker Image
+        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+
       - name: Run ZAP Baseline Scan
         run: |
-          docker pull owasp/zap2docker-stable
-          docker run -v $(pwd):/zap/wrk:rw -t owasp/zap2docker-stable zap-baseline.py -t http://your-backend-url.com -J zap_report.json
+          docker run -v $(pwd):/zap/wrk:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://your-backend-url.com -J zap_report.json

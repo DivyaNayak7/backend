@@ -10,7 +10,10 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+from flask_cors import CORS
+
+# ⚠️ Vulnerability: Allowing all origins to access API
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Vulnerable configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learning.db'
@@ -84,13 +87,7 @@ class Assignment(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey(
         'course.id'), nullable=False)
     due_date = db.Column(db.DateTime, nullable=False)
-    
-@app.route('/api/search', methods=['GET'])
-def search():
-    query = request.args.get('q', '')
-    # ⚠️ Vulnerability: Directly injecting user input into SQL query
-    results = db.session.execute(f"SELECT * FROM courses WHERE title LIKE '%{query}%'").fetchall()
-    return jsonify([dict(row) for row in results])
+
 
 def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     """
@@ -145,11 +142,7 @@ def grade_submission():
 
 @app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
 def get_student_submissions(student_id):
-    """
-    ⚠️ Vulnerability: No authentication check (IDOR)
-    Allows an attacker to access any student's submissions by changing the student_id in the URL.
-    """
-    # ❌ No authentication check here!
+    # Vulnerability: IDOR possible - no authentication check
     submissions = Submission.query.filter_by(student_id=student_id).all()
 
     return jsonify([{
@@ -161,7 +154,6 @@ def get_student_submissions(student_id):
             'feedback': sub.grade.feedback
         } if sub.grade else None
     } for sub in submissions])
-
 
 
 @app.route('/api/courses/<int:course_id>/assignments', methods=['GET'])
@@ -398,16 +390,23 @@ with app.app_context():
     db.create_all()
 
 
+import subprocess
+
 @app.route('/api/export-grades', methods=['POST'])
 def export_grades():
     course_id = request.json.get('course_id')
     format_type = request.json.get('format', 'csv')
 
-    # Vulnerability: Command injection through format parameter
-    os.system(f'generate_report {course_id} --format {format_type}')
+    """
+    ⚠️ Vulnerability: Command Injection via format_type parameter
+    Allows an attacker to inject system commands using shell metacharacters.
+    """
+    command = f"generate_report {course_id} --format {format_type}"
+    
+    # ❌ Unsafe execution of user input!
+    subprocess.run(command, shell=True)
 
     return jsonify({'message': 'Export completed'})
-
 
 @app.route('/api/courses/<int:course_id>/students', methods=['GET'])
 def get_course_students(course_id):
@@ -489,6 +488,25 @@ def get_student_course_grades(course_id, student_id):
         return jsonify({'message': 'Invalid token'}), 401
 
 # Update the grade submission endpoint
+@app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
+def get_student_submissions(student_id):
+    """
+    ⚠️ Vulnerability: No authentication check (IDOR)
+    Allows an attacker to access any student's submissions by changing the student_id in the URL.
+    """
+    # ❌ No authentication check here!
+    submissions = Submission.query.filter_by(student_id=student_id).all()
+
+    return jsonify([{
+        'id': sub.id,
+        'file_path': sub.file_path,
+        'submitted_at': sub.submitted_at.isoformat() if hasattr(sub, 'submitted_at') else None,
+        'grade': {
+            'value': sub.grade.value,
+            'feedback': sub.grade.feedback
+        } if sub.grade else None
+    } for sub in submissions])
+
 
 
 @app.route('/api/grade/student', methods=['POST'])
@@ -542,35 +560,10 @@ def grade_student():
         db.session.rollback()
         print(f"Error submitting grade: {str(e)}")
         return jsonify({'message': 'Error submitting grade'}), 500
-from flask import redirect
-
 @app.route('/api/redirect', methods=['GET'])
 def open_redirect():
-    """
-    This endpoint is intentionally vulnerable to Open Redirect.
-    It allows users to specify any URL, leading to phishing attacks.
-    """
     target_url = request.args.get('url', '')
-
-    # ⚠️ Vulnerability: Redirects user to an external site without validation
-    return redirect(target_url)
-import subprocess
-
-@app.route('/api/export-grades', methods=['POST'])
-def export_grades():
-    course_id = request.json.get('course_id')
-    format_type = request.json.get('format', 'csv')
-
-    """
-    ⚠️ Vulnerability: Command Injection via format_type parameter
-    Allows an attacker to inject system commands using shell metacharacters.
-    """
-    command = f"generate_report {course_id} --format {format_type}"
-    
-    # ❌ Unsafe execution of user input!
-    subprocess.run(command, shell=True)
-
-    return jsonify({'message': 'Export completed'})
+    return redirect(target_url)  # ❌ No validation!
 
 
 if __name__ == '__main__':

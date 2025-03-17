@@ -170,6 +170,19 @@ def get_course_assignments(course_id):
 
 
 @app.route('/api/register', methods=['POST'])
+
+@app.route('/api/xss-test', methods=['GET', 'POST'])
+def xss_test():
+    """
+    This endpoint is intentionally vulnerable to Cross-Site Scripting (XSS).
+    It directly returns user input without sanitization.
+    """
+    user_input = request.args.get('input', '')
+    
+    # Vulnerability: User input is returned without sanitization
+    return f"<h1>User Input: {user_input}</h1>"
+
+
 def register():
     data = request.get_json()
 

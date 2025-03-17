@@ -10,7 +10,11 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+from flask_cors import CORS
+
+# ⚠️ WORST SECURITY PRACTICE: Allows any origin, any method, any headers
+CORS(app, resources={r"/*": {"origins": "*", "allow_headers": "*", "methods": "*"}})
+
 
 # Vulnerable configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learning.db'
@@ -135,7 +139,20 @@ def grade_submission():
         return jsonify({'message': 'Grade submitted successfully'})
 
     return jsonify({'message': 'Submission not found'}), 404
+@app.after_request
+def expose_server_header(response):
+    # ⚠️ BAD PRACTICE: Revealing the server type and version
+    response.headers['Server'] = 'Apache/2.4.1 (Ubuntu)'
+    return response
 
+
+@app.after_request
+def remove_security_headers(response):
+    # ⚠️ BAD PRACTICE: Removing security headers
+    headers_to_remove = ["X-Frame-Options", "X-Content-Type-Options", "Strict-Transport-Security"]
+    for header in headers_to_remove:
+        response.headers.pop(header, None)
+    return response
 
 @app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
 def get_student_submissions(student_id):

@@ -92,7 +92,6 @@ def search():
     results = db.session.execute(f"SELECT * FROM courses WHERE title LIKE '%{query}%'").fetchall()
     return jsonify([dict(row) for row in results])
 
-
 def is_course_teacher(course_id: int, teacher_id: int) -> bool:
     """
     Check if the given teacher is the owner of the course.

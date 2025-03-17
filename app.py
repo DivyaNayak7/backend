@@ -84,6 +84,7 @@ class Assignment(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey(
         'course.id'), nullable=False)
     due_date = db.Column(db.DateTime, nullable=False)
+    
 @app.route('/api/xss-test', methods=['GET', 'POST'])
 def xss_test():
     """

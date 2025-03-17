@@ -101,12 +101,11 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull ZAP Docker Image
-        run: docker pull owasp/zap2docker-stable
+        run: docker pull owasp/zap2docker-stable || docker pull owasp/zap2docker-weekly
 
-      - name: Run ZAP Baseline Scan
+      - name: Run ZAP Baseline Scan (Allow Warnings)
         run: |
           docker run --rm -v $(pwd):/zap/wrk:rw owasp/zap2docker-stable \
-          zap-baseline.py -t http://your-backend-url.com -r zap_report.html || true
-
           zap-baseline.py -t http://your-backend-url.com \
           -r zap_report.html -w 10 || true
+

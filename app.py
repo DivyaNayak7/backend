@@ -306,26 +306,6 @@ def get_courses():
 
 @app.route('/api/login', methods=['POST'])
 
-@app.route('/api/vulnerable-sql', methods=['GET'])
-def vulnerable_sql():
-    """
-    This endpoint is intentionally vulnerable to SQL Injection.
-    It constructs SQL queries using direct string concatenation.
-    """
-    username = request.args.get('username', '')
-
-    # ⚠️ Vulnerability: Direct concatenation of user input in SQL query (SQL Injection)
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-
-    # Execute the query unsafely
-    conn = sqlite3.connect('learning.db')
-    cursor = conn.cursor()
-    cursor.execute(query)
-    result = cursor.fetchall()
-    conn.close()
-
-    return jsonify({"result": result})
-
 
 def login():
     data = request.get_json()
@@ -351,6 +331,25 @@ def login():
 
     return jsonify({'message': 'Invalid credentials'}), 401
 # Vulnerability: No proper authentication check
+@app.route('/api/vulnerable-sql', methods=['GET'])
+def vulnerable_sql():
+    """
+    This endpoint is intentionally vulnerable to SQL Injection.
+    It constructs SQL queries using direct string concatenation.
+    """
+    username = request.args.get('username', '')
+
+    # ⚠️ Vulnerability: Direct concatenation of user input in SQL query (SQL Injection)
+    query = f"SELECT * FROM user WHERE username = '{username}'"
+
+    # Execute the query unsafely
+    conn = sqlite3.connect('learning.db')
+    cursor = conn.cursor()
+    cursor.execute(query)
+    result = cursor.fetchall()
+    conn.close()
+
+    return jsonify({"result": result})
 
 
 @app.route('/api/submissions/<int:submission_id>', methods=['GET'])

@@ -330,6 +330,17 @@ def login():
     return jsonify({'message': 'Invalid credentials'}), 401
 # Vulnerability: No proper authentication check
 
+@app.route('/api/xss-test', methods=['GET', 'POST'])
+def xss_test():
+    """
+    This endpoint is intentionally vulnerable to Cross-Site Scripting (XSS).
+    It directly returns user input without sanitization.
+    """
+    user_input = request.args.get('input', '')
+
+    # Vulnerability: User input is returned without sanitization
+    return f"<h1>User Input: {user_input}</h1>"
+
 
 @app.route('/api/submissions/<int:submission_id>', methods=['GET'])
 def get_submission(submission_id):
@@ -478,16 +489,6 @@ def get_student_course_grades(course_id, student_id):
         return jsonify({'message': 'Invalid token'}), 401
 
 # Update the grade submission endpoint
-@app.route('/api/xss-test', methods=['GET', 'POST'])
-def xss_test():
-    """
-    This endpoint is intentionally vulnerable to Cross-Site Scripting (XSS).
-    It directly returns user input without sanitization.
-    """
-    user_input = request.args.get('input', '')
-
-    # Vulnerability: User input is returned without sanitization
-    return f"<h1>User Input: {user_input}</h1>"
 
 
 @app.route('/api/grade/student', methods=['POST'])

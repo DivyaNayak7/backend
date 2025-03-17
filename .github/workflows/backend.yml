@@ -13,14 +13,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v3
         with:
           python-version: '3.9'
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
   docker:
     needs: build
@@ -39,17 +38,24 @@ jobs:
         run: docker push divyanayak7/backend-app:latest
 
   sonarcloud:
-    needs: build
+    needs: docker
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
       - name: Set up Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: '17'
+
+      - name: Install Sonar Scanner
+        run: |
+          curl -o sonar-scanner.zip -L "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip"
+          unzip sonar-scanner.zip
+          sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
+          echo "PATH=$PATH:/opt/sonar-scanner/bin" >> $GITHUB_ENV
 
       - name: Run SonarCloud Scan
         env:
@@ -59,26 +65,21 @@ jobs:
             -Dsonar.projectKey=DivyaNayak7_backend \
             -Dsonar.organization=divyashashikantnayak \
             -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.python.version=3.9
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   snyk:
-    needs: build
+    needs: docker
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Run Snyk Security Scan
         uses: snyk/actions/python@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: test --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   zap_scan:
     needs: docker
@@ -90,4 +91,4 @@ jobs:
       - name: Run ZAP Baseline Scan
         run: |
           docker pull owasp/zap2docker-stable
-          docker run -t owasp/zap2docker-stable zap-baseline.py -t http://your-backend-url.com -r zap_report.html
+          docker run -v $(pwd):/zap/wrk:rw -t owasp/zap2docker-stable zap-baseline.py -t http://your-backend-url.com -J zap_report.json

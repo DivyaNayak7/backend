@@ -369,29 +369,23 @@ def get_submission(submission_id):
 # Vulnerability: Insecure file handling
 
 
+
 @app.route('/api/submit-assignment', methods=['POST'])
 def submit_assignment():
+    """
+    Vulnerable file upload endpoint: allows arbitrary files.
+    """
     if 'file' not in request.files:
         return jsonify({'message': 'No file provided'}), 400
 
     file = request.files['file']
-    assignment_id = request.form.get('assignment_id')
-    student_id = request.form.get('student_id')
-
-    # Vulnerability: No file type validation
-    filename = secure_filename(file.filename)
-    # Vulnerability: Path traversal possible
+    
+    # ⚠️ Vulnerability: No file type validation, allows any file type
+    filename = file.filename
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-    submission = Submission(
-        student_id=student_id,
-        assignment_id=assignment_id,
-        file_path=filename
-    )
-    db.session.add(submission)
-    db.session.commit()
+    return jsonify({'message': f'File {filename} uploaded successfully'})
 
-    return jsonify({'message': 'Assignment submitted successfully'})
 
 # Vulnerability: Directory traversal possible
 

@@ -140,22 +140,6 @@ def grade_submission():
     return jsonify({'message': 'Submission not found'}), 404
 
 
-@app.route('/api/student-submissions/<int:student_id>', methods=['GET'])
-def get_student_submissions(student_id):
-    # Vulnerability: IDOR possible - no authentication check
-    submissions = Submission.query.filter_by(student_id=student_id).all()
-
-    return jsonify([{
-        'id': sub.id,
-        'file_path': sub.file_path,
-        'submitted_at': sub.submitted_at.isoformat() if hasattr(sub, 'submitted_at') else None,
-        'grade': {
-            'value': sub.grade.value,
-            'feedback': sub.grade.feedback
-        } if sub.grade else None
-    } for sub in submissions])
-
-
 @app.route('/api/courses/<int:course_id>/assignments', methods=['GET'])
 def get_course_assignments(course_id):
     # Vulnerability: No authentication check
